@@ -464,8 +464,6 @@ MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree 
 static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
 
-    const struct OpInfo *op_info = get_op_info(tree->nodes[node]);
-
     MVMint32   first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     MVMint32        nchild = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32        *links = MVM_JIT_EXPR_LINKS(tree, node);
@@ -649,6 +647,91 @@ static MVMint32 tree_is_empty(MVMThreadContext *tc, MVMJitExprTree *tree) {
     return MVM_VECTOR_ELEMS(tree->nodes) == 0;
 }
 
+static MVMObject* get_type_object_for_instruction(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMSpeshIns *ins, MVMuint16 opcode) {
+    MVMSpeshOperand type_operand;
+    MVMSpeshFacts *type_facts;
+    switch (opcode) {
+    case MVM_OP_unshift_i:
+    case MVM_OP_unshift_n:
+    case MVM_OP_unshift_s:
+    case MVM_OP_unshift_o:
+    case MVM_OP_bindkey_i:
+    case MVM_OP_bindkey_n:
+    case MVM_OP_bindkey_s:
+    case MVM_OP_bindkey_o:
+    case MVM_OP_bindpos_i:
+    case MVM_OP_bindpos_n:
+    case MVM_OP_bindpos_s:
+    case MVM_OP_bindpos_o:
+    case MVM_OP_bindattr_i:
+    case MVM_OP_bindattr_n:
+    case MVM_OP_bindattr_s:
+    case MVM_OP_bindattr_o:
+    case MVM_OP_bindattrs_i:
+    case MVM_OP_bindattrs_n:
+    case MVM_OP_bindattrs_s:
+    case MVM_OP_bindattrs_o:
+    case MVM_OP_push_i:
+    case MVM_OP_push_n:
+    case MVM_OP_push_s:
+    case MVM_OP_push_o:
+    case MVM_OP_deletekey:
+    case MVM_OP_setelemspos:
+    case MVM_OP_splice:
+    case MVM_OP_assign_i:
+    case MVM_OP_assign_n:
+    case MVM_OP_assign_s:
+        type_operand = ins->operands[0];
+        break;
+    case MVM_OP_atpos_i:
+    case MVM_OP_atpos_n:
+    case MVM_OP_atpos_s:
+    case MVM_OP_atpos_o:
+    case MVM_OP_atkey_i:
+    case MVM_OP_atkey_n:
+    case MVM_OP_atkey_s:
+    case MVM_OP_atkey_o:
+    case MVM_OP_elems:
+    case MVM_OP_shift_i:
+    case MVM_OP_shift_n:
+    case MVM_OP_shift_s:
+    case MVM_OP_shift_o:
+    case MVM_OP_pop_i:
+    case MVM_OP_pop_n:
+    case MVM_OP_pop_s:
+    case MVM_OP_pop_o:
+    case MVM_OP_existskey:
+    case MVM_OP_existspos:
+    case MVM_OP_getattr_i:
+    case MVM_OP_getattr_n:
+    case MVM_OP_getattr_s:
+    case MVM_OP_getattr_o:
+    case MVM_OP_getattrs_i:
+    case MVM_OP_getattrs_n:
+    case MVM_OP_getattrs_s:
+    case MVM_OP_getattrs_o:
+    case MVM_OP_attrinited:
+    case MVM_OP_hintfor:
+    case MVM_OP_slice:
+    case MVM_OP_decont_i:
+    case MVM_OP_decont_n:
+    case MVM_OP_decont_s:
+        type_operand = ins->operands[1];
+        break;
+    case MVM_OP_box_i:
+    case MVM_OP_box_n:
+    case MVM_OP_box_s:
+        type_operand = ins->operands[2];
+        break;
+    default:
+        return NULL;
+    }
+    type_facts = MVM_spesh_get_facts(tc, sg, type_operand);
+    if (type_facts != NULL && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+        return type_facts->type;
+    return NULL;
+}
+
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *entry = iter->ins;
@@ -693,6 +776,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 opcode = ins->info->opcode;
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
+        MVMObject *type_object;
         MVMint32 before_label = -1, after_label = -1, root = 0;
 
         struct ValueDefinition *defined_value = NULL;
@@ -786,6 +870,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             goto emit;
         }
 
+        type_object = get_type_object_for_instruction(tc, sg, ins, opcode);
+/*        if (type_object != NULL);
+          fprintf(stderr, "opcode=%s type_object=%p debug_name=%s\n", ins->info->name, type_object, type_object->st->debug_name); */
         template = MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
