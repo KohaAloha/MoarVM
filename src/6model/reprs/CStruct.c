@@ -1060,6 +1060,7 @@ static const MVMREPROps CStruct_this_repr = {
     gc_free_repr_data,
     compose,
     spesh, /* spesh */
+    NULL, /* jit */
     "CStruct", /* name */
     MVM_REPR_ID_MVMCStruct,
     unmanaged_size,

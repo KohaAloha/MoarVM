@@ -108,6 +108,7 @@ static const MVMREPROps Semaphore_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "Semaphore", /* name */
     MVM_REPR_ID_Semaphore,
     NULL, /* unmanaged_size */

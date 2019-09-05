@@ -158,6 +158,7 @@ static const MVMREPROps HashAttrStore_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "HashAttrStore", /* name */
     MVM_REPR_ID_HashAttrStore,
     NULL, /* unmanaged_size */
